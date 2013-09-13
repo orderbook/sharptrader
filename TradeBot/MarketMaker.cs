@@ -91,6 +91,7 @@ namespace MarketMaker.Trades
         public void IcbitConnected(object sender, EventArgs e)
         {
             Console.WriteLine("ICBIT: Connected and ready to work!");
+            //icbit.SubscribeToChannel("orderbook_BUZ3");
         }
 
         void StartMtGoxStreaming()

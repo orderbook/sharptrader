@@ -140,6 +140,14 @@ namespace MarketMaker.Trades
             }
         }
 
+        public void SubscribeToChannel(string channel)
+        {
+            string subsStr = "4::/icbit:{\"op\":\"subscribe\",\"channel\": \""+channel+"\"}";
+
+            // Send the command
+            sock.WebSocket.SendAscii(subsStr);
+        }
+
         void onMessage(string msg, int? msgId, string ep)
         {
             //Console.WriteLine("MESSAGE: " + msg);
