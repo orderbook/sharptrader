@@ -38,7 +38,7 @@ namespace MarketMaker.Trades
         public event EventHandler BalanceChanged;
         public event EventHandler ConnectEvent;
 
-        public Icbit(uint userid, string authToken)
+        public Icbit(uint userid, string apiKey, string apiSecret)
         {
             orders = new ConcurrentDictionary<long, Order>[2];
             orders[0] = new ConcurrentDictionary<long, Order>();
@@ -50,7 +50,10 @@ namespace MarketMaker.Trades
             eventOrderUpdated = new AutoResetEvent(false);
             connected = false;
 
-            ConnUrl = "https://api.icbit.se:443/?AuthKey=" + authToken + "&UserId=" + userid;
+            long nonce = Authenticator.GetUnixTimeStamp();
+            string signature = Authenticator.GetSignature(nonce, apiKey, apiSecret, userid.ToString());
+
+            ConnUrl = String.Format("https://api.icbit.se:443/?key={0}&signature={1}&nonce={2}", apiKey, signature, nonce);
 
             sock = new SocketIO();
             sock.OnMessage += onMessage;
@@ -223,7 +226,7 @@ namespace MarketMaker.Trades
                     OnOrdersChanged(new EventArgs());
                 }
 
-                // Handle instruments dictionaru
+                // Handle instruments dictionary
                 if (obj.op == OpType.@private && obj.@private == PacketContent.instruments)
                 {
                     var v = obj.instruments;

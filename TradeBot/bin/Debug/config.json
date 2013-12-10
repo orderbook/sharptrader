@@ -1,7 +1,8 @@
 {
     "icbit": {
-        "UserId": 1111,
-        "ApiKey": "Paste your user id and api key from https://icbit.se/WebTrade/Account/API.aspx"
+        "UserId": Your User ID number here,
+        "ApiKey": "Your API Key goes here"
+        "ApiSecret": "Your API Secret goes here"
     },
     "mtgox": {
         "ApiKey": "MtGox API key goes here",

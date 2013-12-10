@@ -12,6 +12,7 @@ using System.Text;
 using System.Timers;
 using System.IO;
 using System.Net;
+using System.Security.Cryptography;
 
 // taken from http://fastjson.codeplex.com/ LGPL 2.1
 using fastJSON;
@@ -29,6 +30,7 @@ namespace MarketMaker.Trades
     {
         public uint UserId { get; set; }
         public string ApiKey { get; set; }
+        public string ApiSecret { get; set; }
     }
 
     [Serializable]
@@ -43,6 +45,51 @@ namespace MarketMaker.Trades
     {
         public IcbitConfig icbit { get; set; }
         public MtGoxConfig mtgox { get; set; }
+    }
+
+    // Signature is compatible between Bitstamp and ICBIT
+    public class Authenticator
+    {
+        /*public void AddApiAuthentication(RestRequest restRequest)
+        {
+            var nonce = DateTime.Now.Ticks;
+            var signature = GetSignature(nonce, apiKey, apiSecret, clientId);
+
+            restRequest.AddParameter("key", apiKey);
+            restRequest.AddParameter("signature", signature);
+            restRequest.AddParameter("nonce", nonce);
+        }*/
+
+        public static long GetUnixTimeStamp()
+        {
+            DateTime time = DateTime.UtcNow;
+            DateTime dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+
+            // unix is number of microseconds since 1 Jan 1970
+            TimeSpan epochTimespan = time.Subtract(dtDateTime);
+
+            // ticks per microsecond = 10.
+            long result = epochTimespan.Ticks / 10000000;
+            return result;
+        }
+
+        public static string GetSignature(long nonce, string key, string secret, string clientId)
+        {
+            string msg = string.Format("{0}{1}{2}", nonce, clientId, key);
+
+            return ByteArrayToString(SignHMACSHA256(secret, Encoding.ASCII.GetBytes(msg))).ToUpper();
+        }
+
+        private static byte[] SignHMACSHA256(String key, byte[] data)
+        {
+            HMACSHA256 hashMaker = new HMACSHA256(Encoding.ASCII.GetBytes(key));
+            return hashMaker.ComputeHash(data);
+        }
+
+        private static string ByteArrayToString(byte[] hash)
+        {
+            return BitConverter.ToString(hash).Replace("-", "");
+        }
     }
 
     public class MarketMaker
@@ -69,7 +116,7 @@ namespace MarketMaker.Trades
             }
 
             // Create ICBIT exchange object
-            icbit = new Icbit(config.icbit.UserId, config.icbit.ApiKey);
+            icbit = new Icbit(config.icbit.UserId, config.icbit.ApiKey, config.icbit.ApiSecret);
             icbit.OrdersChanged += new EventHandler(IcbitOrdersChanged);
             icbit.BalanceChanged += new EventHandler(IcbitBalanceChanged);
             icbit.ConnectEvent += new EventHandler(IcbitConnected);
