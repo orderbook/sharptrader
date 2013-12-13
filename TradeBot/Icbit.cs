@@ -151,6 +151,14 @@ namespace MarketMaker.Trades
             sock.WebSocket.SendAscii(subsStr);
         }
 
+        public void GetTrades(long since, uint limit)
+        {
+            string subsStr = String.Format("4::/icbit:{{\"since\":\"{0}\",\"limit\":{1},\"type\":\"user_trades\",\"op\":\"get\"}}", since, limit);
+
+            // Send the command
+            sock.WebSocket.SendAscii(subsStr);
+        }
+
         void onMessage(string msg, int? msgId, string ep)
         {
             //Console.WriteLine("MESSAGE: " + msg);
@@ -245,6 +253,16 @@ namespace MarketMaker.Trades
                         connected = true;
                         OnConnect(new EventArgs());
                     }
+                }
+
+                // Handle user trades
+                if (obj.op == OpType.@private && obj.@private == PacketContent.user_trades)
+                {
+                    var v = obj.user_trades;
+
+                    // TODO: Add some handling of user trades
+                    foreach (var t in v)
+                        Console.WriteLine(t);
                 }
             }
         }

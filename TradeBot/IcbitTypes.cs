@@ -17,6 +17,7 @@ namespace MarketMaker.IcbitTypes
     {
         user_order,
         user_balance,
+        user_trades,
         orderbook,
         status,
         ticker,
@@ -190,6 +191,19 @@ namespace MarketMaker.IcbitTypes
     }
 
     [Serializable]
+    public class Trade
+    {
+        public int buy { get; set; }
+        public int market { get; set; }
+        public long price { get; set; }
+        public long qty { get; set; }
+        public ulong sid { get; set; }
+        public string ticker { get; set; }
+        public ulong tid { get; set; }
+        public long ts { get; set; }
+    }
+
+    [Serializable]
     public class Packet
     {
         public OpType op { get; set; } //"private","subscribe","unsubscribe","remark"
@@ -213,6 +227,7 @@ namespace MarketMaker.IcbitTypes
         public List<Position> user_balance { get; set; }
         public List<Order> user_order { get; set; }
         public List<Instrument> instruments { get; set; }
+        public List<Trade> user_trades { get; set; }
 
         public override string ToString()
         {
