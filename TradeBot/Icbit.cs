@@ -1,6 +1,6 @@
 ﻿/*
  * Program: Trading bot
- * Author: ICBIT team (https://orderbook.net)
+ * Author: ICBIT Trading Inc. (https://orderbook.net)
  * License: GPLv3 by Free Software Foundation
  * Comments: Class providing interface to the ICBIT trading API
  */
@@ -30,8 +30,8 @@ namespace MarketMaker.Trades
         public ConcurrentDictionary<long, Order> orders;
         public ConcurrentDictionary<string, Position> balance;
 
-        private static AutoResetEvent eventOrderUpdated;
         private Boolean connected;
+        private ulong orderToken;
 
         // Events
         public event EventHandler OrdersChanged;
@@ -43,7 +43,7 @@ namespace MarketMaker.Trades
             orders = new ConcurrentDictionary<long, Order>();
             balance = new ConcurrentDictionary<string, Position>();
             instruments = new ConcurrentDictionary<string, Instrument>();
-            eventOrderUpdated = new AutoResetEvent(false);
+            orderToken = 0;
             connected = false;
 
             long nonce = Authenticator.GetUnixTimeStamp();
@@ -69,42 +69,22 @@ namespace MarketMaker.Trades
         {
             string buyStr = buy ? "1" : "0";
 
-            ulong token = 111;
+            ulong token = ++orderToken;
 
             string tradeStr = string.Format("4::/icbit:{{\"op\":\"create_order\",\"order\":{{\"market\":1,\"token\":\"{0}\",\"ticker\":\"{1}\",\"buy\":{2},\"price\":{3},\"qty\":{4}}}}}", token, ticker, buyStr, price, qty);
-
-            // Reset previous signals of the order-received event
-            eventOrderUpdated.Reset();
 
             // Send the command
             //Console.WriteLine("[{0}] Creating new order", DateTime.Now.ToString("HH:mm:ss.fff"));
             sock.WebSocket.SendAscii(tradeStr);
-
-            // Wait till it's processed
-            if (!eventOrderUpdated.WaitOne(new TimeSpan(0, 0, 10)))
-            {
-                // Timeout....
-                // TODO: Add handling of this situation
-            }
         }
 
         public void CancelOrder(int marketType, long oid)
         {
             string tradeStr = "4::/icbit:{\"op\":\"cancel_order\",\"order\":{\"oid\":" + oid + ",\"market\":" + marketType + "}}";
 
-            // Reset previous signals of the order-received event
-            eventOrderUpdated.Reset();
-
             // Send the command
             //Console.WriteLine("[{0}] Sending cancel oid {1}", DateTime.Now.ToString("HH:mm:ss.fff"), oid);
             sock.WebSocket.SendAscii(tradeStr);
-
-            // Wait till it's processed
-            if (!eventOrderUpdated.WaitOne(new TimeSpan(0, 0, 10)))
-            {
-                // Timeout....
-                // TODO: Add handling of this situation
-            }
         }
 
         public void ClearAllOrders()
@@ -173,6 +153,9 @@ namespace MarketMaker.Trades
                         foreach (var o in obj.user_order)
                         {
                             //Console.WriteLine("[{0}] Got order update {1}", DateTime.Now.ToString("HH:mm:ss.fff"), o.oid);
+
+                            if (o.token > orderToken) orderToken = o.token;
+
                             if (orders.ContainsKey(o.oid))
                             {
                                 // Update existing order
@@ -198,9 +181,6 @@ namespace MarketMaker.Trades
                                 }
                             }
                         }
-
-                        // Signal the ord
-                        eventOrderUpdated.Set();
 
                         // Raise the orders changed event
                         OnOrdersChanged(new EventArgs());

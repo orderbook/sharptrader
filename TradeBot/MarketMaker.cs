@@ -1,6 +1,6 @@
 ﻿/*
  * Program: Trading bot
- * Author: ICBIT team (https://icbit.se)
+ * Author: ICBIT Trading Inc. (https://orderbook.net)
  * License: GPLv3 by Free Software Foundation
  * Comments: Core arbitrage trading logic implementation
  */
