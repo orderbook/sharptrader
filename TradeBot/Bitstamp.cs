@@ -12,22 +12,25 @@ using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
-using MarketMaker.MtGoxTypes;
+using MarketMaker.BistampTypes;
 using fastJSON;
 
 namespace MarketMaker.Trades
 {
-    public class MtGox
+    public class Bitstamp
     {
+        public string userId;
         public string apiKey;
         public string apiSecret;
 
-        string baseURL = "https://mtgox.com/api/";
+        string baseURL = "https://www.bitstamp.net/api/";
         string UserAgent = "TAYPE International/0.1 MtGox API Client";
 
-        public MtGox()
+        public Bitstamp()
         {
         }
+
+#if notimplemented
 
         /// <summary>
         /// 0/data/getTrades.php 
@@ -248,30 +251,6 @@ namespace MarketMaker.Trades
         }
 
         /// <summary>
-        /// 0/ticker
-        /// </summary>
-        public Ticker ticker()
-        {
-            try
-            {
-                string url = (this.baseURL) + "0/ticker.php";
-                string postData = "";
-                string responseStr = DoAuthenticatedAPIPost(url, apiKey, apiSecret, postData);
-
-                /* "{\"ticker\":{
-                 *      \"high\":12.34,\"low\":11.82512,\"avg\":12.055453273,\"vwap\":12.06356085,\"vol\":50744,\"last_all\":12.31998,\"last_local\":12.31998,\"last\":12.31998,\"buy\":12.31997,\"sell\":12.31998}
-                 *  }"
-                 */
-                var tickerContainer = JSON.Instance.ToObject<TickerContainerAPIv0>(responseStr); // FIXME: Doesn't work?!
-                return tickerContainer.ticker;
-            }
-            catch (Exception ex)
-            {
-                return null;
-            }
-        }
-
-        /// <summary>
         /// Perform an authenticated post to MtGox client API
         /// </summary>        
         string DoAuthenticatedAPIPost(string url, string apiKey, string apiSecret, string moreargs = null)
@@ -315,5 +294,6 @@ namespace MarketMaker.Trades
             var byteArray = hmacsha512.ComputeHash(Encoding.UTF8.GetBytes(parameters));
             return Convert.ToBase64String(byteArray);
         }
+#endif
     }
 }

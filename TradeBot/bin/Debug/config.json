@@ -4,8 +4,9 @@
         "ApiKey": "Your API Key goes here"
         "ApiSecret": "Your API Secret goes here"
     },
-    "mtgox": {
-        "ApiKey": "MtGox API key goes here",
-        "ApiSecret": "And/Secret/Here=="
+    "bitstamp": {
+        "UserId": "Your User ID number here",
+        "ApiKey": "Your API Key goes here",
+        "ApiSecret": "Your API Secret goes here"
     }
 }

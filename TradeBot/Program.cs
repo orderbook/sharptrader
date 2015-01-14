@@ -9,7 +9,7 @@ using fastJSON;
 using WebSockets.Net;
 using WebSockets.Utils;
 
-using MarketMaker.MtGoxTypes;
+using MarketMaker.BistampTypes;
 
 namespace MarketMaker.Trades
 {

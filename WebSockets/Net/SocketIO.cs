@@ -17,6 +17,8 @@ namespace WebSockets.Net
 	//=============================================================================================
 
 	// socket.io Event see https://github.com/LearnBoost/socket.io-spec #Messages 
+    // https://github.com/automattic/socket.io-protocol
+    // https://github.com/automattic/engine.io-protocol
 
 	[Serializable]
 	public enum EventType

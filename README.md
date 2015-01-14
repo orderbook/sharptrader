@@ -1,9 +1,7 @@
 sharptrader
 ===========
 
-ICBIT and Mt.Gox trading bot.
-
-Includes full featured reference connection library for ICBIT exchange in C#.
+OrderBook.net (ICBIT) C# reference connection library integrated into an example trader bot.
 
 All you need to do is to clone the repo, build it and paste
 your user id and API key into the configuration file TradeBot/bin/Debug/config.json

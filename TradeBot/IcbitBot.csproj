@@ -34,9 +34,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="fastJSON, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="fastjson, Version=2.1.0.0, Culture=neutral, PublicKeyToken=6b75a806b86095cd, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\fastJSON.dll</HintPath>
+      <HintPath>..\packages\fastJSON.2.1.1.0\lib\net40\fastjson.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -46,19 +46,22 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Bitstamp.cs" />
+    <Compile Include="BitstampTypes.cs" />
     <Compile Include="Icbit.cs" />
     <Compile Include="IcbitTypes.cs" />
     <Compile Include="MarketMaker.cs" />
-    <Compile Include="MtGox.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="MtgoxTypes.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\WebSockets\WebSockets.csproj">
       <Project>{E8F5073D-C532-481D-BFF0-FB2A8903775A}</Project>
       <Name>WebSockets</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -166,7 +166,7 @@ namespace MarketMaker.Trades
 
         void onJson(string json, int? msgId, string ep)
         {
-            var obj = JSON.Instance.ToObject<Packet>(json);
+            var obj = JSON.ToObject<Packet>(json);
             //Console.WriteLine("JSON: " + obj);
 
             // Handle incoming messages

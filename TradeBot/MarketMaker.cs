@@ -20,9 +20,6 @@ using fastJSON;
 using WebSockets.Net;
 using WebSockets.Utils;
 
-using MarketMaker.MtGoxTypes;
-
-
 namespace MarketMaker.Trades
 {
     [Serializable]
@@ -34,8 +31,9 @@ namespace MarketMaker.Trades
     }
 
     [Serializable]
-    public class MtGoxConfig
+    public class BitstampConfig
     {
+        public string UserId { get; set; }
         public string ApiKey { get; set; }
         public string ApiSecret { get; set; }
     }
@@ -44,7 +42,7 @@ namespace MarketMaker.Trades
     public class MarketMakerConfig
     {
         public IcbitConfig icbit { get; set; }
-        public MtGoxConfig mtgox { get; set; }
+        public BitstampConfig bitstamp { get; set; }
     }
 
     // Signature is compatible between Bitstamp and ICBIT
@@ -94,7 +92,6 @@ namespace MarketMaker.Trades
 
     public class MarketMaker
     {
-        SocketIO sock;
         Icbit icbit;
 
         MarketMakerConfig config;
@@ -106,7 +103,7 @@ namespace MarketMaker.Trades
             {
                 using (StreamReader sr = new StreamReader(configFilename))
                 {
-                    config = JSON.Instance.ToObject<MarketMakerConfig>(sr.ReadToEnd());
+                    config = JSON.ToObject<MarketMakerConfig>(sr.ReadToEnd());
                 }
             }
             catch (Exception e)
@@ -114,6 +111,10 @@ namespace MarketMaker.Trades
                 Console.WriteLine("Exception while reading config file: " + e.ToString());
                 return;
             }
+
+            Pusher p = new Pusher();
+            p.Open("ws://ws.pusherapp.com/app/de504dc5763aeef9ff52?protocol=5&client=pusher-dotnet-client&version=0.0.1");
+            p.Subscribe("order_book");
 
             // Create ICBIT exchange object
             icbit = new Icbit(config.icbit.UserId, config.icbit.ApiKey, config.icbit.ApiSecret);
@@ -139,53 +140,8 @@ namespace MarketMaker.Trades
         {
             Console.WriteLine("ICBIT: Connected and ready to work!");
             //icbit.SubscribeToChannel("orderbook_BUZ3");
-        }
 
-        void StartMtGoxStreaming()
-        {
-            sock = new SocketIO();
-            sock.OnMessage += onMessage;
-            sock.OnJson += onJson;
-            sock.Open(@"https://socketio.mtgox.com/", Encoding.ASCII);
-
-            // choose /mtgox namespace
-            sock.WebSocket.SendAscii("1::/mtgox");
-
-            //sock.WebSocket.SendAscii( "4::/mtgox:{\"op\":\"mtgox.subscribe\",\"type\":\"ticker\"}" );
-            sock.WebSocket.SendAscii("4::/mtgox:{\"op\":\"unsubscribe\",\"channel\":\"dbf1dee9-4f2e-4a08-8cb7-748919a71b21\"}"); // trades
-            sock.WebSocket.SendAscii("4::/mtgox:{\"op\":\"unsubscribe\",\"channel\":\"24e67e0d-1cad-4cc0-9e7a-f8523ef460fe\"}"); // depth
-
-            //01:45:21.511 DEBUG: DATA: 4::/mtgox:{"op":"subscribe","channel":"dbf1dee9-4f2e-4a08-8cb7-748919a71b21"}
-            //01:45:21.585 DEBUG: DATA: 4::/mtgox:{"op":"subscribe","channel":"d5f06780-30a8-4a48-a2f8-7ed181b4a13f"}
-            //01:45:21.587 DEBUG: DATA: 4::/mtgox:{"op":"subscribe","channel":"24e67e0d-1cad-4cc0-9e7a-f8523ef460fe"}
-        }
-
-        void onMessage(string msg, int? msgId, string ep)
-        {
-            //Console.WriteLine("MESSAGE: " + msg);
-        }
-
-        void onJson(string json, int? msgId, string ep)
-        {
-            var obj = JSON.Instance.ToObject<Packet>(json);
-            //Console.WriteLine("JSON: " + obj);
-
-            // Unsubscribe from unneeded channels if we got subscribed to them automatically
-            if (obj.op == OpType.subscribe && obj.channel != "d5f06780-30a8-4a48-a2f8-7ed181b4a13f")
-            {
-                sock.WebSocket.SendAscii("4::/mtgox:{\"op\":\"unsubscribe\",\"channel\":\"" + obj.channel + "\"}");
-            }
-
-            // Handle ticker
-            if (obj.op == OpType.@private && obj.@private == PacketContent.ticker)
-            {
-                //04:11:17.084 DEBUG: DATA: 4::/mtgox:{"channel":"d5f06780-30a8-4a48-a2f8-7ed181b4a13f","op":"private","origin":"broadcast","private":"ticker","ticker":{"high":{"value":"5.92000","value_int":"592000","display":"$5.92000","display_short":"$5.92","currency":"USD"},"low":{"value":"5.53000","value_int":"553000","display":"$5.53000","display_short":"$5.53","currency":"USD"},"avg":{"value":"5.67060","value_int":"567060","display":"$5.67060","display_short":"$5.67","currency":"USD"},"vwap":{"value":"5.66442","value_int":"566442","display":"$5.66442","display_short":"$5.66","currency":"USD"},"vol":{"value":"86111.67583170","value_int":"8611167583170","display":"86,111.67583170??BTC","display_short":"86,111.68??BTC","currency":"BTC"},"last_local":{"value":"5.92000","value_int":"592000","display":"$5.92000","display_short":"$5.92","currency":"USD"},"last":{"value":"5.92000","value_int":"592000","display":"$5.92000","display_short":"$5.92","currency":"USD"},"last_orig":{"value":"5.92000","value_int":"592000","display":"$5.92000","display_short":"$5.92","currency":"USD"},"last_all":{"value":"5.92000","value_int":"592000","display":"$5.92000","display_short":"$5.92","currency":"USD"},"buy":{"value":"5.90010","value_int":"590010","display":"$5.90010","display_short":"$5.90","currency":"USD"},"sell":{"value":"5.92000","value_int":"592000","display":"$5.92000","display_short":"$5.92","currency":"USD"}}}
-
-                var ticker = obj.ticker;
-
-                // Update ICBIT's orders accordingly
-                //UpdateByTicker(ticker.buy.value_int, ticker.sell.value_int);
-            }
+            //icbit.CreateOrderFutures("BUZ4", true, 350, 1);
         }
 
         public static string HttpPost(string uri, string parameters)

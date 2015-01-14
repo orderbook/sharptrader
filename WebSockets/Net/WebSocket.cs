@@ -207,6 +207,11 @@ namespace WebSockets.Net
 			send( str, Encoding.ASCII, str.Length, flush );
 		}
 
+        public void SendUTF8(string str, bool flush = true)
+        {
+            send(str, Encoding.UTF8, str.Length, flush);
+        }
+
 		public void Send( string str, bool flush = true )
 		{
 			var len = _enc.GetByteCount( str );
