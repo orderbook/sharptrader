@@ -13,7 +13,6 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using MarketMaker.BistampTypes;
-using fastJSON;
 
 namespace MarketMaker.Trades
 {

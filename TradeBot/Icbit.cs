@@ -1,6 +1,6 @@
 ﻿/*
  * Program: Trading bot
- * Author: ICBIT team (https://icbit.se)
+ * Author: ICBIT team (https://orderbook.net)
  * License: GPLv3 by Free Software Foundation
  * Comments: Class providing interface to the ICBIT trading API
  */
@@ -12,7 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-using fastJSON;
+using Newtonsoft.Json;
 
 using WebSockets.Net;
 using WebSockets.Utils;
@@ -26,8 +26,8 @@ namespace MarketMaker.Trades
         string ConnUrl;
         SocketIO sock;
 
-        public ConcurrentDictionary<string, Instrument>[] instruments;
-        public ConcurrentDictionary<long, Order>[] orders;
+        public ConcurrentDictionary<string, Instrument> instruments;
+        public ConcurrentDictionary<long, Order> orders;
         public ConcurrentDictionary<string, Position> balance;
 
         private static AutoResetEvent eventOrderUpdated;
@@ -40,13 +40,9 @@ namespace MarketMaker.Trades
 
         public Icbit(uint userid, string apiKey, string apiSecret)
         {
-            orders = new ConcurrentDictionary<long, Order>[2];
-            orders[0] = new ConcurrentDictionary<long, Order>();
-            orders[1] = new ConcurrentDictionary<long, Order>();
+            orders = new ConcurrentDictionary<long, Order>();
             balance = new ConcurrentDictionary<string, Position>();
-            instruments = new ConcurrentDictionary<string, Instrument>[2];
-            instruments[0] = new ConcurrentDictionary<string, Instrument>();
-            instruments[1] = new ConcurrentDictionary<string, Instrument>();
+            instruments = new ConcurrentDictionary<string, Instrument>();
             eventOrderUpdated = new AutoResetEvent(false);
             connected = false;
 
@@ -69,32 +65,13 @@ namespace MarketMaker.Trades
             sock.WebSocket.SendAscii("1::/icbit");
         }
 
-        public void CreateOrderCurrency(uint ticker, Boolean buy, long price, long qty)
+        public void CreateOrder(string ticker, Boolean buy, long price, long qty)
         {
             string buyStr = buy ? "1" : "0";
 
-            string tradeStr = "4::/icbit:{\"op\":\"create_order\",\"order\":{\"market\":0,\"ticker\":\"" + ticker + "\",\"buy\":" + buyStr + ",\"price\":" + price + ",\"qty\":" + qty + "}}";
+            ulong token = 111;
 
-            // Reset previous signals of the order-received event
-            eventOrderUpdated.Reset();
-
-            // Send the command
-            //Console.WriteLine("[{0}] Creating new order", DateTime.Now.ToString("HH:mm:ss.fff"));
-            sock.WebSocket.SendAscii(tradeStr);
-
-            // Wait till it's processed
-            if (!eventOrderUpdated.WaitOne(new TimeSpan(0, 0, 10)))
-            {
-                // Timeout....
-                // TODO: Add handling of this situation
-            }
-        }
-
-        public void CreateOrderFutures(string ticker, Boolean buy, long price, long qty)
-        {
-            string buyStr = buy ? "1" : "0";
-
-            string tradeStr = "4::/icbit:{\"op\":\"create_order\",\"order\":{\"market\":1,\"ticker\":\"" + ticker + "\",\"buy\":" + buyStr + ",\"price\":" + price + ",\"qty\":" + qty + "}}";
+            string tradeStr = string.Format("4::/icbit:{{\"op\":\"create_order\",\"order\":{{\"market\":1,\"token\":\"{0}\",\"ticker\":\"{1}\",\"buy\":{2},\"price\":{3},\"qty\":{4}}}}}", token, ticker, buyStr, price, qty);
 
             // Reset previous signals of the order-received event
             eventOrderUpdated.Reset();
@@ -132,14 +109,9 @@ namespace MarketMaker.Trades
 
         public void ClearAllOrders()
         {
-            foreach (var o in orders[MarketType.Futures].Keys)
+            foreach (var o in orders.Keys)
             {
                 CancelOrder(MarketType.Futures, o);
-            }
-
-            foreach (var o in orders[MarketType.Currency].Keys)
-            {
-                CancelOrder(MarketType.Currency, o);
             }
         }
 
@@ -166,104 +138,108 @@ namespace MarketMaker.Trades
 
         void onJson(string json, int? msgId, string ep)
         {
-            var obj = JSON.ToObject<Packet>(json);
-            //Console.WriteLine("JSON: " + obj);
+            try {
+                var obj = JsonConvert.DeserializeObject<Packet>(json);
+                //Console.WriteLine("JSON: " + json);
 
-            // Handle incoming messages
-            if (obj.op == OpType.@private)
-            {
-                // Handle user balance
-                if (obj.op == OpType.@private && obj.@private == PacketContent.user_balance)
+                // Handle incoming messages
+                if (obj.op == OpType.@private)
                 {
-                    var v = obj.user_balance;
-
-                    // Clear all balance
-                    balance.Clear();
-
-                    // Add all to the local cache
-                    foreach (var p in v)
-                        balance.TryAdd(p.ticker, p);
-
-                    // Raise the balance changed event
-                    OnBalanceChanged(new EventArgs());
-                }
-
-                // Handle user orders
-                if (obj.op == OpType.@private && obj.@private == PacketContent.user_order)
-                {
-                    // If it's not an update - purge existing orders list
-                    if (!obj.update)
+                    // Handle user balance
+                    if (obj.op == OpType.@private && obj.@private == PacketContent.user_balance)
                     {
-                        orders[MarketType.Futures].Clear();
-                        orders[MarketType.Currency].Clear();
+                        var v = obj.user_balance;
+
+                        // Clear all balance
+                        balance.Clear();
+
+                        // Add all to the local cache
+                        foreach (var p in v)
+                            balance.TryAdd(p.ticker, p);
+
+                        // Raise the balance changed event
+                        OnBalanceChanged(new EventArgs());
                     }
 
-                    foreach (var o in obj.user_order)
+                    // Handle user orders
+                    if (obj.op == OpType.@private && obj.@private == PacketContent.user_order)
                     {
-                        //Console.WriteLine("[{0}] Got order update {1}", DateTime.Now.ToString("HH:mm:ss.fff"), o.oid);
-                        if (orders[o.market].ContainsKey(o.oid))
+                        // If it's not an update - purge existing orders list
+                        if (!obj.update)
                         {
-                            // Update existing order
-                            if (o.status == OrderStatus.Rejected ||
-                                o.status == OrderStatus.Canceled ||
-                                o.status == OrderStatus.Filled)
+                            orders.Clear();
+                        }
+
+                        foreach (var o in obj.user_order)
+                        {
+                            //Console.WriteLine("[{0}] Got order update {1}", DateTime.Now.ToString("HH:mm:ss.fff"), o.oid);
+                            if (orders.ContainsKey(o.oid))
                             {
-                                Order removed;
-                                orders[o.market].TryRemove(o.oid, out removed);
+                                // Update existing order
+                                if (o.status == OrderStatus.Rejected ||
+                                    o.status == OrderStatus.Canceled ||
+                                    o.status == OrderStatus.Filled)
+                                {
+                                    Order removed;
+                                    orders.TryRemove(o.oid, out removed);
+                                }
+                                else
+                                {
+                                    orders[o.oid] = o;
+                                }
                             }
                             else
                             {
-                                orders[o.market][o.oid] = o;
+                                // Add a new one
+                                if (o.status == OrderStatus.New ||
+                                    o.status == OrderStatus.PartiallyFilled)
+                                {
+                                    orders.TryAdd(o.oid, o);
+                                }
                             }
                         }
-                        else
-                        {
-                            // Add a new one
-                            if (o.status == OrderStatus.New ||
-                                o.status == OrderStatus.PartiallyFilled)
-                            {
-                                orders[o.market].TryAdd(o.oid, o);
-                            }
-                        }
+
+                        // Signal the ord
+                        eventOrderUpdated.Set();
+
+                        // Raise the orders changed event
+                        OnOrdersChanged(new EventArgs());
                     }
 
-                    // Signal the ord
-                    eventOrderUpdated.Set();
-
-                    // Raise the orders changed event
-                    OnOrdersChanged(new EventArgs());
-                }
-
-                // Handle instruments dictionary
-                if (obj.op == OpType.@private && obj.@private == PacketContent.instruments)
-                {
-                    var v = obj.instruments;
-
-                    // Clear all instruments dictionaries
-                    instruments[MarketType.Futures].Clear();
-                    instruments[MarketType.Currency].Clear();
-
-                    // Add all of them to the local cache
-                    foreach (var p in v)
-                        instruments[p.market_id].TryAdd(p.ticker, p);
-
-                    // Raise the connection event once
-                    if (!connected)
+                    // Handle instruments dictionary
+                    if (obj.op == OpType.@private && obj.@private == PacketContent.instruments)
                     {
-                        connected = true;
-                        OnConnect(new EventArgs());
+                        var v = obj.instruments;
+
+                        // Clear all instruments dictionaries
+                        instruments.Clear();
+
+                        // Add all of them to the local cache
+                        foreach (var p in v)
+                            instruments.TryAdd(p.ticker, p);
+
+                        // Raise the connection event once
+                        if (!connected)
+                        {
+                            connected = true;
+                            OnConnect(new EventArgs());
+                        }
+                    }
+
+                    // Handle user trades
+                    if (obj.op == OpType.@private && obj.@private == PacketContent.user_trades)
+                    {
+                        var v = obj.user_trades;
+
+                        // TODO: Add some handling of user trades
+                        foreach (var t in v)
+                            Console.WriteLine(t);
                     }
                 }
-
-                // Handle user trades
-                if (obj.op == OpType.@private && obj.@private == PacketContent.user_trades)
-                {
-                    var v = obj.user_trades;
-
-                    // TODO: Add some handling of user trades
-                    foreach (var t in v)
-                        Console.WriteLine(t);
-                }
+            }
+            catch (Exception exc)
+            {
+                Console.WriteLine(exc.ToString());
             }
         }
 

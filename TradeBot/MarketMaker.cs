@@ -14,8 +14,7 @@ using System.IO;
 using System.Net;
 using System.Security.Cryptography;
 
-// taken from http://fastjson.codeplex.com/ LGPL 2.1
-using fastJSON;
+using Newtonsoft.Json;
 
 using WebSockets.Net;
 using WebSockets.Utils;
@@ -103,7 +102,7 @@ namespace MarketMaker.Trades
             {
                 using (StreamReader sr = new StreamReader(configFilename))
                 {
-                    config = JSON.ToObject<MarketMakerConfig>(sr.ReadToEnd());
+                    config = JsonConvert.DeserializeObject<MarketMakerConfig>(sr.ReadToEnd());
                 }
             }
             catch (Exception e)
@@ -141,7 +140,7 @@ namespace MarketMaker.Trades
             Console.WriteLine("ICBIT: Connected and ready to work!");
             //icbit.SubscribeToChannel("orderbook_BUZ3");
 
-            //icbit.CreateOrderFutures("BUZ4", true, 350, 1);
+            //icbit.CreateOrder("BUF5", true, 182, 10);
         }
 
         public static string HttpPost(string uri, string parameters)

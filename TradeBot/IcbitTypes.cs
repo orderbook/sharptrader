@@ -18,6 +18,7 @@ namespace MarketMaker.IcbitTypes
         user_order,
         user_balance,
         user_trades,
+        user_info,
         orderbook,
         status,
         ticker,
@@ -80,6 +81,37 @@ namespace MarketMaker.IcbitTypes
         public long pos_quoted { get; set; }
     }
 
+    /* 06:35:00.521 DEBUG: DATA: 4::/icbit:{"channel":"user_order","op":"private","update":false,"private":"user_order",
+     * "user_order":[
+     * {"oid":"8276056","date":1418508566,"dir":0,"type":0,"price":400,"qty":500,"exec_qty":0,"status":0,"ticker":"BUH5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8276058","date":1418508572,"dir":0,"type":0,"price":450,"qty":500,"exec_qty":0,"status":0,"ticker":"BUH5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8466304","date":1420892854,"dir":1,"type":0,"price":200,"qty":1000,"exec_qty":0,"status":4,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8487123","date":1421143586,"dir":1,"type":0,"price":220,"qty":500,"exec_qty":500,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8487135","date":1421143596,"dir":1,"type":0,"price":100,"qty":5000,"exec_qty":0,"status":4,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8504199","date":1421234089,"dir":1,"type":0,"price":192,"qty":1000,"exec_qty":489,"status":1,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8504586","date":1421237093,"dir":1,"type":0,"price":182,"qty":10,"exec_qty":0,"status":4,"ticker":"BUF5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505087","date":1421240319,"dir":1,"type":0,"price":209,"qty":87,"exec_qty":87,"status":2,"ticker":"BUF5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505138","date":1421240620,"dir":1,"type":0,"price":230,"qty":2600,"exec_qty":2600,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505199","date":1421241314,"dir":1,"type":0,"price":225,"qty":636,"exec_qty":636,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505210","date":1421241409,"dir":1,"type":0,"price":248,"qty":414,"exec_qty":414,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505235","date":1421241593,"dir":1,"type":0,"price":272,"qty":130,"exec_qty":130,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505253","date":1421241714,"dir":1,"type":0,"price":239,"qty":50,"exec_qty":50,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505257","date":1421241785,"dir":1,"type":0,"price":245,"qty":50,"exec_qty":50,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505276","date":1421241879,"dir":1,"type":0,"price":277,"qty":5,"exec_qty":5,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505283","date":1421241992,"dir":1,"type":0,"price":238,"qty":150,"exec_qty":150,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505293","date":1421242141,"dir":1,"type":0,"price":384,"qty":312,"exec_qty":312,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505313","date":1421242443,"dir":1,"type":0,"price":247,"qty":1,"exec_qty":1,"status":2,"ticker":"BUU5","token":"0","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505398","date":1421243607,"dir":1,"type":0,"price":182,"qty":10,"exec_qty":0,"status":4,"ticker":"BUF5","token":"111","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505403","date":1421243716,"dir":1,"type":0,"price":182,"qty":10,"exec_qty":0,"status":4,"ticker":"BUF5","token":"111","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505408","date":1421243749,"dir":1,"type":0,"price":182,"qty":10,"exec_qty":0,"status":4,"ticker":"BUF5","token":"111","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505449","date":1421243945,"dir":1,"type":0,"price":182,"qty":10,"exec_qty":0,"status":4,"ticker":"BUF5","token":"111","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505481","date":1421244022,"dir":1,"type":0,"price":182,"qty":10,"exec_qty":0,"status":4,"ticker":"BUF5","token":"111","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8505490","date":1421244056,"dir":1,"type":0,"price":182,"qty":10,"exec_qty":0,"status":4,"ticker":"BUF5","token":"111","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8506391","date":1421249057,"dir":1,"type":0,"price":182,"qty":10,"exec_qty":0,"status":4,"ticker":"BUF5","token":"111","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8506405","date":1421249471,"dir":1,"type":0,"price":182,"qty":10,"exec_qty":0,"status":4,"ticker":"BUF5","token":"111","info":0,"currency":"BTC","market":1,"fills":[]},
+     * {"oid":"8506412","date":1421249559,"dir":1,"type":0,"price":182,"qty":10,"exec_qty":0,"status":4,"ticker":"BUF5","token":"111","info":0,"currency":"BTC","market":1,"fills":[]}]}
+
+     */
     [Serializable]
     public class Order
     {
@@ -110,6 +142,14 @@ namespace MarketMaker.IcbitTypes
             }
         }
     }
+
+    /* 06:40:52.182 DEBUG: DATA: 4::/icbit:{"channel":"user_balance","op":"private","private":"user_balance",
+     * "user_balance":[{"name":"BTC/USD-9.15","ticker":"BUU5","curid":"1","type":1,"qty":6237,"price":236.95438059601744,"mm":85.87818855,"vm":10.705100996381354,"w":10,"r":1,"inverted":"1"},
+     * {"name":"BTC/USD-3.15","ticker":"BUH5","curid":"1","type":1,"qty":4501,"price":328.34346366055394,"mm":66.47963497,"vm":-75.22925583950989,"w":10,"r":1,"inverted":"1"},
+     * {"name":"BTC/USD-1.15","ticker":"BUF5","curid":"1","type":1,"qty":2732,"price":336.2673631920281,"mm":41.166923440000005,"vm":-55.355124670250255,"w":10,"r":1,"inverted":"1"},
+     * {"name":"Bitcoins","ticker":"BTC","curid":1,"type":0,"qty":"43647140809","upl":-119.8792795133788,"margin":193.52474696000002},
+     * {"name":"US Dollars","ticker":"USD","curid":2,"type":0,"qty":"182848945","upl":0,"margin":0}]}
+     */
 
     [Serializable]
     public class Position
@@ -204,6 +244,14 @@ namespace MarketMaker.IcbitTypes
     }
 
     [Serializable]
+    public class UserInfo
+    {
+        public uint id { get; set; }
+        public double fee_discount { get; set; }
+        // details: []
+    }
+
+    [Serializable]
     public class Packet
     {
         public OpType op { get; set; } //"private","subscribe","unsubscribe","remark"
@@ -228,6 +276,7 @@ namespace MarketMaker.IcbitTypes
         public List<Order> user_order { get; set; }
         public List<Instrument> instruments { get; set; }
         public List<Trade> user_trades { get; set; }
+        public UserInfo user_info { get; set; }
 
         public override string ToString()
         {
