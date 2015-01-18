@@ -50,6 +50,8 @@
     <Compile Include="Icbit.cs" />
     <Compile Include="IcbitTypes.cs" />
     <Compile Include="MarketMaker.cs" />
+    <Compile Include="OKCoin.cs" />
+    <Compile Include="OKCoinTypes.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

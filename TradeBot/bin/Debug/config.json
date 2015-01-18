@@ -1,6 +1,6 @@
 {
     "icbit": {
-        "UserId": Your User ID number here,
+        "UserId": 0,
         "ApiKey": "Your API Key goes here"
         "ApiSecret": "Your API Secret goes here"
     },
@@ -8,5 +8,9 @@
         "UserId": "Your User ID number here",
         "ApiKey": "Your API Key goes here",
         "ApiSecret": "Your API Secret goes here"
+    },
+    "okcoin": {
+        "ApiKey": "Your API Key goes here",
+        "ApiSecret": "Your API Secret Key goes here"
     }
 }

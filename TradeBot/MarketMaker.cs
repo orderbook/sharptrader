@@ -38,10 +38,19 @@ namespace MarketMaker.Trades
     }
 
     [Serializable]
+    public class OkcConfig
+    {
+        public string ApiKey { get; set; }
+        public string ApiSecret { get; set; }
+    }
+
+
+    [Serializable]
     public class MarketMakerConfig
     {
         public IcbitConfig icbit { get; set; }
         public BitstampConfig bitstamp { get; set; }
+        public OkcConfig okcoin { get; set; }
     }
 
     // Signature is compatible between Bitstamp and ICBIT
@@ -92,6 +101,7 @@ namespace MarketMaker.Trades
     public class MarketMaker
     {
         Icbit icbit;
+        OKCoin okcoin;
 
         MarketMakerConfig config;
 
@@ -110,6 +120,8 @@ namespace MarketMaker.Trades
                 Console.WriteLine("Exception while reading config file: " + e.ToString());
                 return;
             }
+
+            okcoin = new OKCoin(config.okcoin.ApiKey, config.okcoin.ApiSecret);
 
             Pusher p = new Pusher();
             p.Open("ws://ws.pusherapp.com/app/de504dc5763aeef9ff52?protocol=5&client=pusher-dotnet-client&version=0.0.1");
@@ -201,5 +213,35 @@ namespace MarketMaker.Trades
             }
             return null;
         }
+
+        public static string HttpGet(string uri, string parameters)
+        {
+            bool requestFailed = false;
+
+            // parameters: name1=value1&name2=value2	
+
+            uri += "?" + parameters;
+            ServicePointManager.MaxServicePointIdleTime = 200;
+            HttpWebRequest webRequest = (HttpWebRequest)WebRequest.Create(uri);
+            webRequest.UserAgent = "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)";
+            webRequest.Method = "GET";
+
+                try
+                { // get the response
+                    WebResponse webResponse = webRequest.GetResponse();
+                    if (webResponse == null)
+                    { return null; }
+                    StreamReader sr = new StreamReader(webResponse.GetResponseStream());
+                    return sr.ReadToEnd().Trim();
+                }
+                catch (WebException ex)
+                {
+                    // MessageBox.Show(ex.Message, "HttpPost: Response error",
+                    //   MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+
+            return null;
+        }
+
     }
 }
