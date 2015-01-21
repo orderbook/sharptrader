@@ -33,6 +33,9 @@ namespace MarketMaker.Trades
         private Boolean connected;
         private ulong orderToken;
 
+        // Sync events
+        AutoResetEvent evtConnected;
+
         // Events
         public event EventHandler OrdersChanged;
         public event EventHandler BalanceChanged;
@@ -45,6 +48,7 @@ namespace MarketMaker.Trades
             instruments = new ConcurrentDictionary<string, Instrument>();
             orderToken = 0;
             connected = false;
+            evtConnected = new AutoResetEvent(false);
 
             long nonce = Authenticator.GetUnixTimeStamp();
             string signature = Authenticator.GetSignature(nonce, apiKey, apiSecret, userid.ToString());
@@ -56,13 +60,20 @@ namespace MarketMaker.Trades
             sock.OnJson += onJson;
         }
 
-        public void Connect()
+        public void Connect(bool wait)
         {
+            // Reset the event
+            if (wait) evtConnected.Reset();
+
             // Open the socket
             sock.Open(ConnUrl, Encoding.ASCII);
 
             // And choose /icbit namespace
             sock.WebSocket.SendAscii("1::/icbit");
+
+            // Wait for the first message
+            if (wait && !evtConnected.WaitOne(new TimeSpan(0, 0, 10)))
+                Console.WriteLine("Connection timed out");
         }
 
         public void CreateOrder(string ticker, Boolean buy, long price, long qty)
@@ -199,6 +210,7 @@ namespace MarketMaker.Trades
                             instruments.TryAdd(p.ticker, p);
 
                         // Raise the connection event once
+                        evtConnected.Set();
                         if (!connected)
                         {
                             connected = true;

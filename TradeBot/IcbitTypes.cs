@@ -42,7 +42,9 @@ namespace MarketMaker.IcbitTypes
         Filled = 2,
         DoneForToday = 3,
         Canceled = 4,
-        Rejected = 5
+        Rejected = 5,
+        PendingCancel = 6,
+        PendingNew = 10
     }
 
     [Serializable]

@@ -13,6 +13,7 @@ using System.Timers;
 using System.IO;
 using System.Net;
 using System.Security.Cryptography;
+using System.Timers;
 
 using Newtonsoft.Json;
 
@@ -105,6 +106,10 @@ namespace MarketMaker.Trades
 
         MarketMakerConfig config;
 
+        Timer updatePricesTimer;
+
+        OkcDepth okcDepth;
+
         public MarketMaker(string configFilename)
         {
             // Read config file
@@ -133,8 +138,12 @@ namespace MarketMaker.Trades
             icbit.BalanceChanged += new EventHandler(IcbitBalanceChanged);
             icbit.ConnectEvent += new EventHandler(IcbitConnected);
 
-            // Connect to the ICBIT exchange
-            icbit.Connect();
+            // Connect to the ICBIT exchange (synchronously)
+            icbit.Connect(true);
+
+            updatePricesTimer = new Timer(1000 * 5); // every 10 seconds
+            updatePricesTimer.Elapsed += new ElapsedEventHandler(OnPriceUpdateEvent);
+            updatePricesTimer.Start();
         }
 
         public void IcbitBalanceChanged(object sender, EventArgs e)
@@ -153,6 +162,20 @@ namespace MarketMaker.Trades
             //icbit.SubscribeToChannel("orderbook_BUZ3");
 
             //icbit.CreateOrder("BUF5", true, 182, 10);
+        }
+
+        private void OnPriceUpdateEvent(object source, ElapsedEventArgs e)
+        {
+            // Stop the timer so we are not called until this function finishes
+            updatePricesTimer.Stop();
+
+            // Fetch updated order book from the OKCoin
+            okcDepth = okcoin.getDepthFutures(OKCoinFuturesType.Quarter);
+
+            Console.WriteLine(okcDepth);
+
+            // Resume the timer
+            updatePricesTimer.Start();
         }
 
         public static string HttpPost(string uri, string parameters)
