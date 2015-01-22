@@ -275,7 +275,7 @@ namespace WebSockets.Net
 			// Sincerely yours, Captain Obviousness
 
 			// check headers
-			if (!"HTTP/1.1 101 Switching Protocols".Equals( whs[ HttpKey ] )
+			if ((!"HTTP/1.1 101 Switching Protocols".Equals(whs[HttpKey]) && !"HTTP/1.1 101 Web Socket Protocol Handshake".Equals(whs[HttpKey]))
 				|| !sWebsocket.Equals( whs[ HttpResponseHeader.Upgrade ] )
 				|| !sUpgrade.Equals( whs[ HttpResponseHeader.Connection ] ))
 			{
@@ -433,12 +433,18 @@ namespace WebSockets.Net
 			// length
 			if (less126)
 				buf[ 1 ] = ( byte )len;
-			else
+			else if (len < 0x010000)
 			{
 				buf[ 1 ] = 126;
 				var ulen = IPAddress.HostToNetworkOrder( len );
 				buf[ 2 ] = ( byte )(ulen & 0xff);
 				buf[ 3 ] = ( byte )(ulen >> 8);
+			}
+			else
+			{
+				buf[1] = 127;
+				// UNIMPLEMENTED
+				Helper.CheckArg(false, "Unimplemented for large lengths!");
 			}
 
 			// masking
@@ -465,7 +471,7 @@ namespace WebSockets.Net
 			if (!IsMasking)
 				return;
 
-			var buf = _buf;
+			var buf = _sbuf;
 			for (int i = 0; i < len; ++i)
 				buf[ i + ofs ] ^= buf[ ofs - 4 + (i & 0x3) ];
 		}
