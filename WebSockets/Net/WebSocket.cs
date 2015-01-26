@@ -606,26 +606,25 @@ namespace WebSockets.Net
 
 		#region async callbacks
 
-		void recv( IAsyncResult ar )
-		{
-			var state = ar.AsyncState as Tuple<Stream, int>;
+        void recv(IAsyncResult ar)
+        {
+            var state = ar.AsyncState as Tuple<Stream, int>;
             var stream = state.Item1;
-			try
-			{
-				int len = stream.EndRead( ar );
+            try
+            {
+                int len = stream.EndRead(ar);
                 int offs = 0;
 
-				if (len == 0)
-				{
-					onClosed();
-					return;
-				}
-
-                if (len != 2)
+                if (len == 0)
                 {
-                    // Something is weird, just skip that
-                    beginRecv(stream);
+                    onClosed();
                     return;
+                }
+
+                if (len < 2)
+                {
+                    // Read up the remaining byte!
+                    readBytes(stream, _header, 1, 1);
                 }
 
                 /* Parse the frame header:
@@ -749,7 +748,7 @@ namespace WebSockets.Net
                 }
                 else
                 {
-                    Helper.CheckArg(false, "This WebSocket\'s implementation doesnt support non-FIN frames");
+                    //Helper.CheckArg(false, "This WebSocket\'s implementation doesnt support non-FIN frames");
                 }
 
                 // Read next messages header
