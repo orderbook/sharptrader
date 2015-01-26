@@ -34,6 +34,24 @@ namespace WebSockets.Net
 		TlsHandshake = 1015
 	}
 
+    internal enum Fin : byte
+    {
+        More = 0x0,
+        Final = 0x1
+    }
+
+    internal enum Rsv : byte
+    {
+        Off = 0x0,
+        On = 0x1
+    }
+
+    internal enum Mask : byte
+    {
+        Unmask = 0x0,
+        Mask = 0x1
+    }
+
 	//=============================================================================================
 
 	// imho, delegates less suitable
@@ -54,6 +72,47 @@ namespace WebSockets.Net
 	}
 
 	//=============================================================================================
+
+    /// <summary>
+    /// Contains the values of the opcode that indicates the type of a WebSocket frame.
+    /// </summary>
+    /// <remarks>
+    /// The values of the opcode are defined in
+    /// <see href="http://tools.ietf.org/html/rfc6455#section-5.2">Section 5.2</see> of RFC 6455.
+    /// </remarks>
+    public enum Opcode : byte
+    {
+        /// <summary>
+        /// Equivalent to numeric value 0.
+        /// Indicates a continuation frame.
+        /// </summary>
+        Cont = 0x0,
+        /// <summary>
+        /// Equivalent to numeric value 1.
+        /// Indicates a text frame.
+        /// </summary>
+        Text = 0x1,
+        /// <summary>
+        /// Equivalent to numeric value 2.
+        /// Indicates a binary frame.
+        /// </summary>
+        Binary = 0x2,
+        /// <summary>
+        /// Equivalent to numeric value 8.
+        /// Indicates a connection close frame.
+        /// </summary>
+        Close = 0x8,
+        /// <summary>
+        /// Equivalent to numeric value 9.
+        /// Indicates a ping frame.
+        /// </summary>
+        Ping = 0x9,
+        /// <summary>
+        /// Equivalent to numeric value 10.
+        /// Indicates a pong frame.
+        /// </summary>
+        Pong = 0xa
+    }
 
 	// no supports framing. all frames must be FIN.
 	// no supports long messages: >= 64K
@@ -267,8 +326,8 @@ namespace WebSockets.Net
 			whs[ HttpKey ] = sreq0;
 
 			// send HttpKey-header to server (UTF8. ignore _enc)
-			int len = Encoding.UTF8.GetBytes( sreq, 0, sreq.Length, _buf, 0 );
-			stream.Write( _buf, 0, len );
+			int len = Encoding.UTF8.GetBytes( sreq, 0, sreq.Length, _buf_data, 0 );
+			stream.Write( _buf_data, 0, len );
 
 			// read response from server
 			whs = readHttpResponse( stream, ResponseHeaders );
@@ -294,7 +353,7 @@ namespace WebSockets.Net
 				throw new FormatException( "Sec-WebSocket-Accept not equals to SHA1-hash" );
 
 			Stream = stream;
-			beginRecv( stream, 0 );
+			beginRecv( stream );
 		}
 		#endregion handshake
 
@@ -317,7 +376,7 @@ namespace WebSockets.Net
 					throw new IOException( "stream was closed" );
 
 				byte b = ( byte )ib;
-				_buf[ pos++ ] = b;
+				_buf_data[ pos++ ] = b;
 
 				eof = (eof << 8) + b;
 				if (eof == EOF)
@@ -326,7 +385,7 @@ namespace WebSockets.Net
 				if ((eof & 0xffff) == EOL)
 				{
 					// UTF8. ignore _enc
-					var line = Encoding.UTF8.GetString( _buf, 0, pos - 2 );
+                    var line = Encoding.UTF8.GetString(_buf_data, 0, pos - 2);
 					pos = line.IndexOf( ':' );
 					if (pos < 0)
 						whs[ HttpKey ] = line;
@@ -341,13 +400,15 @@ namespace WebSockets.Net
 			}
 		}
 
-		readonly byte[] _buf = new byte[ 65 * 1024 ];
-		bool beginRecv( Stream stream, int pos )
+        readonly byte[] _header = new byte[10];
+		readonly byte[] _buf_data = new byte[ 65 * 1024 ];
+		bool beginRecv( Stream stream )
 		{
 			try
 			{
+                int pos = 0;
 				var state = new Tuple<Stream, int>( stream, pos );
-				stream.BeginRead( _buf, pos, _buf.Length - pos, recv, state );
+                stream.BeginRead(_header, 0, 2, recv, state);
 			}
 			catch (Exception err)
 			{
@@ -504,6 +565,21 @@ namespace WebSockets.Net
 		}
 		#endregion misc
 
+        public static void readBytes(Stream stream, byte[] data, int initialOffset, int dataLen)
+        {
+            int offset = initialOffset;
+            int remaining = dataLen;
+            while (remaining > 0)
+            {
+                int read = stream.Read(data, offset, remaining);
+                if (read <= 0)
+                    throw new EndOfStreamException
+                        (String.Format("End of stream reached with {0} bytes left to read", remaining));
+                remaining -= read;
+                offset += read;
+            }
+        }
+
 		#endregion implementation
 
 		#region IDisposable implementation
@@ -533,9 +609,11 @@ namespace WebSockets.Net
 		void recv( IAsyncResult ar )
 		{
 			var state = ar.AsyncState as Tuple<Stream, int>;
+            var stream = state.Item1;
 			try
 			{
-				int len = state.Item1.EndRead( ar );
+				int len = stream.EndRead( ar );
+                int offs = 0;
 
 				if (len == 0)
 				{
@@ -543,115 +621,154 @@ namespace WebSockets.Net
 					return;
 				}
 
-				int was = state.Item2;
-				int all = was + len;
+                if (len != 2)
+                {
+                    // Something is weird, just skip that
+                    beginRecv(stream);
+                    return;
+                }
 
-				while (all > 1)
-				{
-					byte b = _buf[ 0 ];
-					if (b == 0)
-					{
-						// old protocol ???
-						int pos = Array.IndexOf<byte>( _buf, 255, was, len );
-						if (pos < 0)
-							break;
-						onString( _enc.GetString( _buf, 1, was + pos - 1 ) );
-						Array.Copy( _buf, pos + 1, _buf, 0, all -= pos + 1 );
-					}
-					else
-					{
-						// last frame in message (no glue yet)
-						Helper.CheckArg( (b & 0x80) != 0, "This WebSocket\'s implementation doesnt support non-FIN frames" );
-						b ^= 0x80;
-						b &= 0x0f; // get payload
+                /* Parse the frame header:
+                 * 1 byte - flags and opcode
+                 * 1 byte - mask and payload length
+                 * 0 - 8 bytes - payload length
+                 * payload
+                */
+                var fin = (_header[0] & 0x80) == 0x80 ? Fin.Final : Fin.More; // FIN
+                var rsv1 = (_header[0] & 0x40) == 0x40 ? Rsv.On : Rsv.Off; // RSV1
+                var rsv2 = (_header[0] & 0x20) == 0x20 ? Rsv.On : Rsv.Off; // RSV2
+                var rsv3 = (_header[0] & 0x10) == 0x10 ? Rsv.On : Rsv.Off; // RSV3
+                var opcode = (Opcode)(_header[0] & 0x0f); // Opcode
+                var mask = (_header[1] & 0x80) == 0x80 ? Mask.Mask : Mask.Unmask; // MASK
+                int payloadLen = (byte)(_header[1] & 0x7f); // Payload Length
 
-						int n = _buf[ 1 ], tn = 2;
-						// no masking from server
-						Helper.CheckArg( (n & 0x80) == 0, "Unexpected WebSocket.frame-masking from server" );
-						if (n >= 126)
-						{
-							// >64K is too big for us now
-							Helper.CheckArg( n < 127, "This WebSocket\'s implementation doesnt support frames with 8bytes-length" );
-							if (all < 4)
-								break;
-							n = (( int )_buf[ 2 ] << 8) + _buf[ 3 ];
-							tn += 2;
-						}
-						var tnn = tn + n;
-						if (all < tnn)
-							break;
+                // no masking from server
+                Helper.CheckArg(mask == Mask.Unmask, "Unexpected WebSocket.frame-masking from server");
 
-						byte[] data = null;
-						bool isText = b == 1;
-						bool isClose = b == 8;
-						if (!isText && !isClose && n > 0)
-							data = new ArraySegment<byte>( _buf, tn, n ).Array;
+                // Calculate extended payload length size
+                int extPayloadBytes = payloadLen < 126 ? 0 : payloadLen == 126 ? 2 : 8;
 
-						switch (b)
-						{
-							case 1: // text
-								onString( _enc.GetString( _buf, tn, n ) );
-								break;
-							case 2: // bin
-								onBinary( data );
-								break;
-							case 9: // ping
-								if (!_isShuted)
-									// send Pong
-									send( 0xA, data, true );
-								break;
-							case 0xA: // pong
-								if (!_isShuted)
-									onPong( data );
-								break;
-							case 8: // close(protocol), here - shutdown
-								{
-									var code = ShutdownCode.Normal;
-									if (n >= 2)
-									{
-										var bits = BitConverter.ToInt16( _buf, tn );
-										bits = IPAddress.NetworkToHostOrder( bits );
-										code = ( ShutdownCode )bits;
-										data = n > 2 ? new ArraySegment<byte>( _buf, tn + 2, n - 2 ).Array : null;
-									}
-									// if this is not echos of our Shutdown...
-									if (!_isShuted)
-									{
-										onShutdown( code, data );
-										// send feedback: data = null
-										Shutdown( code );
-									}
-									// and close connection
-									Close();
-								}
-								break;
-							default:
-								{
-									Helper.CheckArg( false, "Unknown WebSocket.Payload.Type {0}".Format( b ) );
-								}
-								break;
-						}
+                // Read it from the stream
+                if (extPayloadBytes > 0)
+                    readBytes(stream, _header, 2, extPayloadBytes);
 
-						Array.Copy( _buf, tnn, _buf, 0, all -= tnn );
-					}
-				}
+                // Decode payloadLen (if it's more than 126)
+                if (payloadLen >= 126)
+                {
+                    if (payloadLen == 126)
+                    {
+                        payloadLen = ((int)_header[2] << 8) + _header[3];
+                    }
+                    else
+                    {
+                        payloadLen = (int)(((long)_header[2] << 56) +
+                                             ((long)_header[3] << 48) +
+                                             ((long)_header[4] << 40) +
+                                             ((long)_header[5] << 32) +
+                                             ((long)_header[6] << 24) +
+                                             ((long)_header[7] << 16) +
+                                             ((long)_header[8] << 8) +
+                                             _header[9]);
 
-				if (!_isShuted && _stream == state.Item1)
-					beginRecv( state.Item1, all );
-			}
-			catch (Exception err)
-			{
-				// if _stream is live (Close set _stream to null)
-				if (_stream == state.Item1)
-					onError( "recv", err );
+                        //var len64 = BitConverter.ToInt64(_buf, 2);
+                        //len64 = IPAddress.NetworkToHostOrder(bits);
 
-				// we cant read data after errors: invalid buffer pointers and etc
-				//Close();
-				// !!! race-condition if somebody Open another connection
-			}
-		}
+                        //if (payloadLen >= Int32.MaxValue) throw new System.ArgumentOutOfRangeException();
+                    }
+                }
 
-		#endregion
+                byte[] data = null;
+
+                // Read the payload, if any
+                if (payloadLen > 0)
+                {
+                    // Choose the buffer
+                    if (payloadLen <= _buf_data.Length)
+                        data = _buf_data;
+                    else
+                        data = new byte[payloadLen];
+
+                    // Read the data into it
+                    readBytes(stream, data, 0, (int)payloadLen);
+                }
+
+                // Process the frame now
+                if (fin == Fin.Final)
+                {
+                    switch (opcode)
+                    {
+                        case Opcode.Text: // text
+                            onString(_enc.GetString(data, 0, payloadLen));
+                            break;
+                        case Opcode.Binary: // bin
+                            onBinary(data);
+                            break;
+                        case Opcode.Ping: // ping
+                            if (!_isShuted)
+                                // send Pong
+                                send((int)Opcode.Pong, data, true);
+                            break;
+                        case Opcode.Pong: // pong
+                            if (!_isShuted)
+                                onPong(data);
+                            break;
+                        case Opcode.Close: // close(protocol), here - shutdown
+                            {
+                                var code = ShutdownCode.Normal;
+                                byte[] closeData = null;
+                                if (payloadLen >= 2)
+                                {
+                                    var bits = BitConverter.ToInt16(data, 0);
+                                    bits = IPAddress.NetworkToHostOrder(bits);
+                                    code = (ShutdownCode)bits;
+
+                                    // Pass close data, if any
+                                    if (payloadLen > 2)
+                                    {
+                                        closeData = new byte[payloadLen - 2];
+                                        Array.Copy(data, 2, closeData, 0, closeData.Length);
+                                    }
+                                }
+                                // if this is not echos of our Shutdown...
+                                if (!_isShuted)
+                                {
+                                    onShutdown(code, data);
+                                    // send feedback: data = null
+                                    Shutdown(code);
+                                }
+                                // and close connection
+                                Close();
+                            }
+                            break;
+                        default:
+                            {
+                                Helper.CheckArg(false, "Unknown WebSocket.Payload.Type {0}".Format(opcode));
+                            }
+                            break;
+                    }
+                }
+                else
+                {
+                    Helper.CheckArg(false, "This WebSocket\'s implementation doesnt support non-FIN frames");
+                }
+
+                // Read next messages header
+                if (!_isShuted && _stream == stream)
+                    beginRecv(stream);
+            }
+            catch (Exception err)
+            {
+                // if _stream is live (Close set _stream to null)
+                if (_stream == stream)
+                    onError("recv", err);
+
+                // we cant read data after errors: invalid buffer pointers and etc
+                //Close();
+                // !!! race-condition if somebody Open another connection
+            }
+        }
+
+        #endregion
 
 		#region handler callers
 		void onClosed()

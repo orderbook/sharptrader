@@ -78,6 +78,7 @@ namespace WebSockets.Net
 
 			var ws = new WebSocket( encoding );
 			ws.Handler = this;
+			ws.IsMasking = true;
 			ws.Open( spt.Item1 );
 			_sock = ws;
 		}
