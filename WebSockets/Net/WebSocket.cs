@@ -235,7 +235,7 @@ namespace WebSockets.Net
 		public void Ping( byte[] data = null )
 		{
 			Helper.CheckArg( data == null || data.Length < 126, "Ping.data.Length must be less than 126" );
-			send( 0x9, data, true );
+			send( Opcode.Ping, data, true );
 		}
 
 		volatile bool _isShuted = true;
@@ -257,7 +257,7 @@ namespace WebSockets.Net
 				else
 					data = bcode;
 			}
-			send( 0x8, data, true );
+			send( Opcode.Close, data, true );
 		}
 
 		// known exactly length of byte buffer
@@ -280,7 +280,7 @@ namespace WebSockets.Net
 		public void Send( byte[] data, bool flush = true )
 		{
 			Helper.CheckArgNotNull( data, "data" );
-			send( 2, data, flush );
+			send( Opcode.Binary, data, flush );
 		}
 
 		#region implementation
@@ -425,14 +425,14 @@ namespace WebSockets.Net
 			var buf = _sbuf;
 			lock (buf)
 			{
-				var ofs = prepareFrame( 1, len );
+				var ofs = prepareFrame( Opcode.Text, len );
 				enc.GetBytes( str, 0, str.Length, buf, ofs );
 				maskFrame( len, ofs );
 				send( buf, len + ofs, flush );
 			}
 		}
 
-		private void send( int payload, byte[] data, bool flush )
+		private void send( Opcode payload, byte[] data, bool flush )
 		{
 			Helper.CheckOperation( !_isShuted, "Stream is shutdowned" );
 
@@ -446,7 +446,7 @@ namespace WebSockets.Net
 					Array.Copy( data, 0, buf, ofs, len );
 					maskFrame( len, ofs );
 				}
-				_isShuted = _isShuted || (payload == 8);
+				_isShuted = _isShuted || (payload == Opcode.Close);
 				send( buf, len + ofs, flush );
 			}
 
@@ -478,34 +478,48 @@ namespace WebSockets.Net
 		#region process sending frame
 		// must be invoked in lock(_sbuf)
 		// returns length of frame header
-		int prepareFrame( int payload, int len )
+		int prepareFrame(Opcode payload, int len)
 		{
 			//var len = data != null ? data.Length : 0;
 			Helper.CheckArg( len < c64K, "length must be less 64K. NB: string.Length <= UTF8(string).Length for non-ASCII" );
 			Helper.CheckArg( ( uint )payload < 16, "unknow data's payload type" );
 
-			var less126 = len < 126;
-			var ofs = less126 ? 2 : 4;
+			var ofs = 2;
 
 			var buf = _sbuf;
-			buf[ 0 ] = ( byte )payload;
+			buf[ 0 ] = (byte)((int)payload & 0x0F);
 			buf[ 0 ] |= 0x80; // FIN
 
 			// length
-			if (less126)
+			if (len < 126)
+			{
 				buf[ 1 ] = ( byte )len;
+			}
 			else if (len < 0x010000)
 			{
 				buf[ 1 ] = 126;
-				var ulen = IPAddress.HostToNetworkOrder( len );
+				short ulen = IPAddress.HostToNetworkOrder( (short)len );
 				buf[ 2 ] = ( byte )(ulen & 0xff);
 				buf[ 3 ] = ( byte )(ulen >> 8);
+
+				ofs += 2;
 			}
 			else
 			{
 				buf[1] = 127;
-				// UNIMPLEMENTED
-				Helper.CheckArg(false, "Unimplemented for large lengths!");
+
+				long ulen = IPAddress.HostToNetworkOrder((long)len);
+
+				buf[2] = (byte)(ulen & 0xff);
+				buf[3] = (byte)(ulen >> 8);
+				buf[4] = (byte)(ulen >> 16);
+				buf[5] = (byte)(ulen >> 24);
+				buf[6] = (byte)(ulen >> 32);
+				buf[7] = (byte)(ulen >> 40);
+				buf[8] = (byte)(ulen >> 48);
+				buf[9] = (byte)(ulen >> 56);
+
+				ofs += 8;
 			}
 
 			// masking
@@ -705,7 +719,7 @@ namespace WebSockets.Net
                         case Opcode.Ping: // ping
                             if (!_isShuted)
                                 // send Pong
-                                send((int)Opcode.Pong, data, true);
+                                send(Opcode.Pong, data, true);
                             break;
                         case Opcode.Pong: // pong
                             if (!_isShuted)
